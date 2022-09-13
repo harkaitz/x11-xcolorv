@@ -1,0 +1,124 @@
+#!/usr/bin/env tclsh
+#L:
+#L:  MIT License
+#L:  
+#l:  Bug reports, feature requests to gemini|https://harkadev.com/oss
+#l:  Copyright (c) 2022 Harkaitz Agirre, harkaitz.aguirre@gmail.com
+#L:
+#L:  Permission is hereby granted, free of charge, to any person obtaining
+#L:  a copy of this software and associated documentation files (the
+#L:  "Software"), to deal in the Software without restriction, including
+#L:  without limitation the rights to use, copy, modify, merge, publish,
+#L:  distribute, sublicense, and/or sell copies of the Software, and to
+#L:  permit persons to whom the Software is furnished to do so, subject to
+#L:  the following conditions:
+#L:
+#L:  The above copyright notice and this permission notice shall be
+#L:  included in all copies or substantial portions of the Software.
+#L:
+#L:  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#L:  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#L:  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+#L:  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+#L:  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+#L:  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+#L:  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##:
+package require cmdline
+set XCOLORV_HELP "
+Usage: xcolorv OPTIONS... #RRGGBB|plan9
+
+Convert from '#RRGGBB' representation to it's nearest X11 name.
+
+    -l : List defined X colors.
+    -n : Get the color name.
+    -x : View specified colors.
+
+Bug reports, feature requests to gemini|https://harkadev.com/oss
+Copyright (c) 2022 Harkaitz Agirre, harkaitz.aguirre@gmail.com
+"
+proc xcolorv { args } {
+    set opt_n 0
+    set opt_x 0
+    set colors {}
+    
+    while { [set e [cmdline::getopt args {l n x} optopt optvar]] } {
+        if {$e == -1} {
+            error "Invalid option: ${optopt}"
+        }
+        switch $optopt {
+            l { puts [join [showrgb] "\n"] }
+            n { set opt_n 1 }
+            x { set opt_x 1 }
+        }
+        
+    }
+    foreach color $args {
+        set r {}
+        set g {}
+        set b {}
+        if {[regexp "^\#*\(..\)\(..\)\(..\)\$" $color a r g b]} {
+            lappend colors [rgb_rearest 0x$r 0x$g 0x$b]
+        } elseif {$color eq "plan9"} {
+            # https://www.color-hex.com/color-palette/78289
+            lappend colors \
+                [rgb_rearest 0xff 0xff 0xd7] \
+                [rgb_rearest 0xee 0xee 0x9e] \
+                [rgb_rearest 0xd7 0xaf 0xff] \
+                [rgb_rearest 0xaa 0xff 0xff] \
+                [rgb_rearest 0x33 0x33 0x35]
+        }
+    }
+    if {$opt_n} {
+        puts [join $colors "\n"]
+    }
+    if {$opt_x} {
+        package require Tk
+        wm title "." "xcolorv"
+        wm transient "."
+        set n 1
+        foreach color $colors {
+            button ".b$n"     \
+                -text $color       \
+                -background $color \
+                -activebackground $color \
+                -command {}
+            pack ".b$n" -expand 1 -fill both
+            incr n
+        }   
+    }
+}
+proc showrgb { } {
+    set l [split [exec -ignorestderr "showrgb"] "\n"]
+    return $l
+}
+proc rgb_rearest { r g b } {
+    set max   500
+    set found {}
+    foreach o [showrgb] {
+        set or [lindex $o 0]
+        set og [lindex $o 1]
+        set ob [lindex $o 2]
+        set diff [expr {
+                    isqrt( pow( $r - $or , 2) +
+                           pow( $g - $og , 2) +
+                           pow( $b - $ob , 2) ) }]
+        if  {$diff < $max} {
+            set max $diff
+            set found [lrange $o 3 end]
+        }
+    }
+    return $found
+}
+if {[file tail $argv0] eq [file tail [info script]]} {
+    if {[llength $argv] == 0} {
+        puts [string trim $XCOLORV_HELP]
+    } elseif {[info exists env(DEBUG)]} {
+        xcolorv {*}$argv
+    } elseif {[catch {
+        xcolorv {*}$argv
+    } err]} {
+        puts stderr "xcolor-name: $err"
+        exit 1
+    }
+}
