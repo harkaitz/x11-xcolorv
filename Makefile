@@ -16,6 +16,6 @@ endif
 ## -- install-sh --
 install: install-sh
 install-sh:
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cp bin/xcolorv  $(DESTDIR)$(PREFIX)/bin
+	@mkdir -p $(DESTDIR)$(PREFIX)/bin
+	@echo 'I bin/xcolorv'   ; cp bin/xcolorv     $(DESTDIR)$(PREFIX)/bin
 ## -- install-sh --
